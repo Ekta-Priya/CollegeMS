@@ -1,0 +1,13 @@
+{
+  "name": "college-management-system",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev -- --host 0.0.0.0\"",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "start:server": "npm --prefix server run start",
+    "start:client": "npm --prefix client run dev -- --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
