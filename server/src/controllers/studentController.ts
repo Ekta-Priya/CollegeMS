@@ -6,6 +6,7 @@ import Attendance from '../models/Attendance';
 import Grade from '../models/Grade';
 import Notice from '../models/Notice';
 import Department from '../models/Department';
+import Timetable from '../models/Timetable';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 
 export const getStudentDashboard = async (
@@ -37,11 +38,13 @@ export const getMyTimetable = async (
 ): Promise<void> => {
   try {
     const studentId = req.user?.id;
-    const classes = await ClassModel.find({ studentIds: studentId, isActive: true })
-      .populate('subjectIds', 'name code teacherIds')
-      .populate('teacherIds', 'fullName email');
+    const timetable = await Timetable.find({ classId: { $in: await ClassModel.find({ studentIds: studentId, isActive: true }).distinct('_id') }, isActive: true })
+      .populate('classId', 'name section academicYear')
+      .populate('subjectId', 'name code')
+      .populate('teacherId', 'fullName email')
+      .sort({ day: 1, startTime: 1 });
 
-    res.status(200).json({ timetable: classes });
+    res.status(200).json({ timetable });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to fetch timetable', error: error.message });
   }

@@ -46,6 +46,17 @@ interface StudentItem {
   email: string;
 }
 
+interface TimetableEntry {
+  _id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  classId?: { name?: string; section?: string };
+  subjectId?: { name?: string; code?: string };
+  teacherId?: { fullName?: string };
+}
+
 interface LeaveRequestItem {
   _id: string;
   title: string;
@@ -74,6 +85,7 @@ const HODDashboard = () => {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [students, setStudents] = useState<StudentItem[]>([]);
+  const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,17 +94,20 @@ const HODDashboard = () => {
   const [subjectForm, setSubjectForm] = useState({ name: '', code: '' });
   const [classForm, setClassForm] = useState({ name: '', section: '', academicYear: '' });
   const [assignmentForms, setAssignmentForms] = useState<Record<string, { teacherIds: string[]; studentIds: string[]; subjectIds: string[] }>>({});
+  const [studentForm, setStudentForm] = useState({ fullName: '', email: '', password: '', phone: '' });
+  const [timetableForm, setTimetableForm] = useState({ classId: '', subjectId: '', teacherId: '', day: 'Monday', startTime: '', endTime: '', room: '' });
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [summaryRes, teachersRes, subjectsRes, classesRes, leaveRes, studentsRes] = await Promise.all([
+      const [summaryRes, teachersRes, subjectsRes, classesRes, leaveRes, studentsRes, timetableRes] = await Promise.all([
         api.get('/hod/summary'),
         api.get('/hod/teachers'),
         api.get('/hod/subjects'),
         api.get('/hod/classes'),
         api.get('/hod/leave-requests'),
         api.get('/hod/students'),
+        api.get('/hod/timetable'),
       ]);
 
       setSummary(summaryRes.data.summary || summary);
@@ -100,6 +115,7 @@ const HODDashboard = () => {
       setSubjects(subjectsRes.data.subjects || []);
       setClasses(classesRes.data.classes || []);
       setStudents(studentsRes.data.students || []);
+      setTimetableEntries(timetableRes.data.entries || []);
       setLeaveRequests(leaveRes.data.requests || []);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load department dashboard data');
@@ -154,6 +170,34 @@ const HODDashboard = () => {
       await fetchDashboardData();
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to create class');
+    }
+  };
+
+  const handleStudentSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    try {
+      await api.post('/hod/students', studentForm);
+      setStudentForm({ fullName: '', email: '', password: '', phone: '' });
+      setSuccess('Student account created successfully.');
+      await fetchDashboardData();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to create student account');
+    }
+  };
+
+  const handleTimetableSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    try {
+      await api.post('/hod/timetable', timetableForm);
+      setTimetableForm({ classId: '', subjectId: '', teacherId: '', day: 'Monday', startTime: '', endTime: '', room: '' });
+      setSuccess('Timetable entry created successfully.');
+      await fetchDashboardData();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to create timetable entry');
     }
   };
 
@@ -256,7 +300,7 @@ const HODDashboard = () => {
               ))}
             </section>
 
-            <section className="mt-8 grid gap-6 lg:grid-cols-3">
+            <section className="mt-8 grid gap-6 lg:grid-cols-4">
               <form onSubmit={handleTeacherSubmit} className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
                 <h3 className="mb-4 text-xl font-semibold text-slate-800">Create Teacher</h3>
                 <div className="space-y-3">
@@ -284,6 +328,30 @@ const HODDashboard = () => {
                   <input value={classForm.section} onChange={(e) => setClassForm({ ...classForm, section: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Section" />
                   <input value={classForm.academicYear} onChange={(e) => setClassForm({ ...classForm, academicYear: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Academic year" />
                   <button type="submit" className="w-full rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600">Add Class</button>
+                </div>
+              </form>
+
+              <form onSubmit={handleStudentSubmit} className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+                <h3 className="mb-4 text-xl font-semibold text-slate-800">Create Student</h3>
+                <div className="space-y-3">
+                  <input value={studentForm.fullName} onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Full name" required />
+                  <input type="email" value={studentForm.email} onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Email" required />
+                  <input type="password" value={studentForm.password} onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Password" required />
+                  <input value={studentForm.phone} onChange={(e) => setStudentForm({ ...studentForm, phone: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Phone" />
+                  <button type="submit" className="w-full rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600">Add Student</button>
+                </div>
+              </form>
+
+              <form onSubmit={handleTimetableSubmit} className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+                <h3 className="mb-4 text-xl font-semibold text-slate-800">Add Timetable Slot</h3>
+                <div className="space-y-3">
+                  <select value={timetableForm.classId} onChange={(e) => setTimetableForm({ ...timetableForm, classId: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" required><option value="">Select class</option>{classes.map((item) => <option key={item._id || item.id} value={item._id || item.id}>{item.name} {item.section || ''}</option>)}</select>
+                  <select value={timetableForm.subjectId} onChange={(e) => setTimetableForm({ ...timetableForm, subjectId: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" required><option value="">Select subject</option>{subjects.map((item) => <option key={item._id || item.id} value={item._id || item.id}>{item.name}</option>)}</select>
+                  <select value={timetableForm.teacherId} onChange={(e) => setTimetableForm({ ...timetableForm, teacherId: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" required><option value="">Select teacher</option>{teachers.map((item) => <option key={item._id || item.id} value={item._id || item.id}>{item.fullName}</option>)}</select>
+                  <select value={timetableForm.day} onChange={(e) => setTimetableForm({ ...timetableForm, day: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option></select>
+                  <div className="grid grid-cols-2 gap-2"><input type="time" value={timetableForm.startTime} onChange={(e) => setTimetableForm({ ...timetableForm, startTime: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-2" required /><input type="time" value={timetableForm.endTime} onChange={(e) => setTimetableForm({ ...timetableForm, endTime: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-2" required /></div>
+                  <input value={timetableForm.room} onChange={(e) => setTimetableForm({ ...timetableForm, room: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Room" />
+                  <button type="submit" className="w-full rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600">Add Slot</button>
                 </div>
               </form>
             </section>
@@ -385,6 +453,21 @@ const HODDashboard = () => {
                   ) : (
                     <div className="rounded-lg bg-slate-50 p-3 text-slate-500">No classes found.</div>
                   )}
+                </div>
+              </div>
+            </section>
+
+            <section className="mt-8 grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+                <h3 className="mb-4 text-xl font-semibold text-slate-800">Students</h3>
+                <div className="space-y-2">
+                  {students.length ? students.map((student) => <div key={student._id} className="rounded-lg bg-slate-50 p-3"><p className="font-semibold text-slate-800">{student.fullName}</p><p className="text-sm text-slate-600">{student.email}</p></div>) : <p className="text-slate-500">No students created yet.</p>}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+                <h3 className="mb-4 text-xl font-semibold text-slate-800">Timetable</h3>
+                <div className="space-y-2">
+                  {timetableEntries.length ? timetableEntries.map((entry) => <div key={entry._id} className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><div><p className="font-semibold text-slate-800">{entry.day} {entry.startTime}-{entry.endTime}</p><p className="text-sm text-slate-600">{entry.classId?.name} • {entry.subjectId?.name} • {entry.teacherId?.fullName}{entry.room ? ` • Room ${entry.room}` : ''}</p></div><button onClick={() => deleteResource(`/hod/timetable/${entry._id}`, 'timetable entry')} className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white">Delete</button></div>) : <p className="text-slate-500">No timetable entries yet.</p>}
                 </div>
               </div>
             </section>

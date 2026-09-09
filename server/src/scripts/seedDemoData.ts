@@ -5,6 +5,9 @@ import Department from '../models/Department';
 import User from '../models/User';
 import ClassModel from '../models/Class';
 import Subject from '../models/Subject';
+import Timetable from '../models/Timetable';
+import Grade from '../models/Grade';
+import Attendance from '../models/Attendance';
 
 dotenv.config();
 
@@ -97,6 +100,45 @@ const seedDemoData = async () => {
   if (!classDoc.teacherIds.some((id) => id.toString() === teacher._id.toString())) {
     classDoc.teacherIds.push(teacher._id);
     await classDoc.save();
+  }
+
+  const timetableExists = await Timetable.exists({ classId: classDoc._id, subjectId: subject._id, teacherId: teacher._id, day: 'Monday' });
+  if (!timetableExists) {
+    await Timetable.create({
+      departmentId: department._id,
+      classId: classDoc._id,
+      subjectId: subject._id,
+      teacherId: teacher._id,
+      day: 'Monday',
+      startTime: '09:00',
+      endTime: '10:00',
+      room: 'Lab 1',
+    });
+  }
+
+  if (!(await Grade.exists({ studentId: student._id, subjectId: subject._id, classId: classDoc._id }))) {
+    await Grade.create({
+      studentId: student._id,
+      subjectId: subject._id,
+      classId: classDoc._id,
+      teacherId: teacher._id,
+      examType: 'Midterm',
+      marksObtained: 82,
+      totalMarks: 100,
+      grade: 'A',
+      remarks: 'Good work',
+    });
+  }
+
+  if (!(await Attendance.exists({ studentId: student._id, subjectId: subject._id, classId: classDoc._id }))) {
+    await Attendance.create({
+      studentId: student._id,
+      subjectId: subject._id,
+      classId: classDoc._id,
+      teacherId: teacher._id,
+      date: new Date(),
+      status: 'present',
+    });
   }
 
   console.log('Demo accounts ready.');

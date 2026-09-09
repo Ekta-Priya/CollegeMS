@@ -6,3 +6,4 @@ export { default as Attendance, IAttendance } from './Attendance';
 export { default as Grade, IGrade } from './Grade';
 export { default as Notice, INotice } from './Notice';
 export { default as LeaveRequest, ILeaveRequest } from './LeaveRequest';
+export { default as Timetable, ITimetable } from './Timetable';

@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 
-interface TimetableClass {
+interface TimetableEntry {
   _id: string;
-  name: string;
-  section?: string;
-  academicYear?: string;
-  subjectIds?: Array<{ _id: string; name: string; code: string }>;
-  teacherIds?: Array<{ _id: string; fullName: string; email: string }>;
+  day: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+  classId?: { name?: string; section?: string } | null;
+  subjectId?: { _id?: string; name?: string; code?: string } | null;
+  teacherId?: { fullName?: string; email?: string } | null;
 }
 
 interface AttendanceRecord {
@@ -42,7 +44,7 @@ interface DepartmentInfo {
 
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
-  const [timetable, setTimetable] = useState<TimetableClass[]>([]);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [attendance, setAttendance] = useState<{ percentage: number; total: number; present: number; records: AttendanceRecord[] }>({
     percentage: 0,
     total: 0,
@@ -90,7 +92,7 @@ const StudentDashboard = () => {
 
   const statCards = [
     { label: 'Attendance', value: `${attendance.percentage}%` },
-    { label: 'Subjects', value: timetable.reduce((total, cls) => total + (cls.subjectIds?.length || 0), 0) },
+    { label: 'Subjects', value: new Set(timetable.map((entry) => entry.subjectId?._id || entry.subjectId?.code)).size },
     { label: 'Grades', value: grades.length },
     { label: 'Notices', value: notices.length },
   ];
@@ -138,12 +140,11 @@ const StudentDashboard = () => {
                 <h3 className="mb-4 text-xl font-semibold text-slate-800">Timetable</h3>
                 <div className="space-y-3">
                   {timetable.length > 0 ? (
-                    timetable.map((classItem) => (
-                      <div key={classItem._id} className="rounded-lg bg-slate-50 p-3">
-                        <p className="font-semibold text-slate-800">{classItem.name}</p>
-                        <p className="text-sm text-slate-600">
-                          {classItem.subjectIds?.map((s) => s.name).join(', ') || 'No subjects assigned'}
-                        </p>
+                    timetable.map((entry) => (
+                      <div key={entry._id} className="rounded-lg bg-slate-50 p-3">
+                        <p className="font-semibold text-slate-800">{entry.day} • {entry.startTime} - {entry.endTime}</p>
+                        <p className="text-sm text-slate-600">{entry.subjectId?.name || 'Subject'} ({entry.subjectId?.code || 'N/A'}) • {entry.classId?.name || 'Class'}</p>
+                        <p className="text-xs text-slate-500">Teacher: {entry.teacherId?.fullName || 'Not assigned'}{entry.room ? ` • Room ${entry.room}` : ''}</p>
                       </div>
                     ))
                   ) : (
@@ -180,6 +181,18 @@ const StudentDashboard = () => {
                       {record.subjectId?.name || 'Subject'} • {record.status}
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+                <h3 className="mb-4 text-xl font-semibold text-slate-800">Grade Card</h3>
+                <div className="space-y-3">
+                  {grades.length ? grades.map((grade) => (
+                    <div key={grade._id} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                      <div><p className="font-semibold text-slate-800">{grade.subjectId?.name || 'Subject'}</p><p className="text-xs text-slate-500">{grade.examType || 'Assessment'}</p></div>
+                      <div className="text-right"><p className="font-bold text-sky-700">{grade.marksObtained}/{grade.totalMarks}</p><p className="text-xs text-slate-500">Grade {grade.grade || '-'}</p></div>
+                    </div>
+                  )) : <p className="text-slate-500">No grades available yet.</p>}
                 </div>
               </div>
 

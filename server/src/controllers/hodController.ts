@@ -6,6 +6,7 @@ import ClassModel from '../models/Class';
 import LeaveRequest from '../models/LeaveRequest';
 import Attendance from '../models/Attendance';
 import Grade from '../models/Grade';
+import Timetable from '../models/Timetable';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 
 const getDepartmentScope = (req: AuthenticatedRequest) => {
@@ -108,6 +109,58 @@ export const createTeacherAccount = async (
     } });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to create teacher account', error: error.message });
+  }
+};
+
+export const getDepartmentStudents = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const departmentId = getDepartmentScope(req);
+    if (!departmentId) {
+      res.status(400).json({ message: 'HOD is not assigned to a department' });
+      return;
+    }
+
+    const students = await User.find({ role: 'student', departmentId }).select('-password');
+    res.status(200).json({ students });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch department students', error: error.message });
+  }
+};
+
+export const createStudentAccount = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const departmentId = getDepartmentScope(req);
+    const { fullName, email, password, phone } = req.body;
+    if (!departmentId) {
+      res.status(400).json({ message: 'HOD is not assigned to a department' });
+      return;
+    }
+    if (!fullName || !email || !password) {
+      res.status(400).json({ message: 'Full name, email, and password are required' });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      return;
+    }
+    if (await User.exists({ email: email.trim().toLowerCase() })) {
+      res.status(409).json({ message: 'A user with this email already exists' });
+      return;
+    }
+
+    const student = await User.create({ fullName, email: email.trim().toLowerCase(), password, phone, role: 'student', departmentId });
+    res.status(201).json({
+      message: 'Student account created successfully',
+      student: { id: student._id.toString(), fullName: student.fullName, email: student.email, role: student.role, departmentId: departmentId.toString(), isActive: student.isActive },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to create student account', error: error.message });
   }
 };
 
@@ -295,25 +348,6 @@ export const getDepartmentClasses = async (
   }
 };
 
-export const getDepartmentStudents = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const departmentId = getDepartmentScope(req);
-    if (!departmentId) {
-      res.status(400).json({ message: 'HOD is not assigned to a department' });
-      return;
-    }
-
-    const students = await User.find({ role: 'student', departmentId, isActive: true })
-      .select('fullName email departmentId');
-    res.status(200).json({ students });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Failed to fetch department students', error: error.message });
-  }
-};
-
 export const updateClassAssignments = async (
   req: AuthenticatedRequest,
   res: Response
@@ -381,6 +415,72 @@ export const deleteClass = async (
     res.status(200).json({ message: 'Class deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to delete class', error: error.message });
+  }
+};
+
+export const createTimetableEntry = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const departmentId = getDepartmentScope(req);
+    const { classId, subjectId, teacherId, day, startTime, endTime, room } = req.body;
+    if (!departmentId) {
+      res.status(400).json({ message: 'HOD is not assigned to a department' });
+      return;
+    }
+    if (!classId || !subjectId || !teacherId || !day || !startTime || !endTime) {
+      res.status(400).json({ message: 'Class, subject, teacher, day, start time, and end time are required' });
+      return;
+    }
+
+    const [classDoc, subject, teacher] = await Promise.all([
+      ClassModel.findOne({ _id: classId, departmentId, isActive: true }),
+      Subject.findOne({ _id: subjectId, departmentId, isActive: true }),
+      User.findOne({ _id: teacherId, departmentId, role: 'teacher', isActive: true }),
+    ]);
+    if (!classDoc || !subject || !teacher || !classDoc.subjectIds.some((id) => id.toString() === subjectId) || !classDoc.teacherIds.some((id) => id.toString() === teacherId)) {
+      res.status(400).json({ message: 'Selected class, subject, and teacher must belong to this department and class' });
+      return;
+    }
+
+    const entry = await Timetable.create({ departmentId, classId, subjectId, teacherId, day, startTime, endTime, room });
+    res.status(201).json({ message: 'Timetable entry created successfully', entry });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to create timetable entry', error: error.message });
+  }
+};
+
+export const getDepartmentTimetable = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const departmentId = getDepartmentScope(req);
+    const entries = await Timetable.find({ departmentId, isActive: true })
+      .populate('classId', 'name section academicYear')
+      .populate('subjectId', 'name code')
+      .populate('teacherId', 'fullName email')
+      .sort({ day: 1, startTime: 1 });
+    res.status(200).json({ entries });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to fetch timetable', error: error.message });
+  }
+};
+
+export const deleteTimetableEntry = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const entry = await Timetable.findOneAndDelete({ _id: req.params.id, departmentId: getDepartmentScope(req) });
+    if (!entry) {
+      res.status(404).json({ message: 'Timetable entry not found' });
+      return;
+    }
+    res.status(200).json({ message: 'Timetable entry deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to delete timetable entry', error: error.message });
   }
 };
 

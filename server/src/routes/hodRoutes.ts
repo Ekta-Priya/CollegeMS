@@ -11,7 +11,11 @@ import {
   createClass,
   getDepartmentClasses,
   getDepartmentStudents,
+  createStudentAccount,
   updateClassAssignments,
+  createTimetableEntry,
+  getDepartmentTimetable,
+  deleteTimetableEntry,
   deleteClass,
   getPendingLeaveRequests,
   reviewLeaveRequest,
@@ -35,7 +39,11 @@ router.delete('/subjects/:id', deleteSubject);
 router.get('/classes', getDepartmentClasses);
 router.post('/classes', createClass);
 router.get('/students', getDepartmentStudents);
+router.post('/students', createStudentAccount);
 router.put('/classes/:id/assignments', updateClassAssignments);
+router.get('/timetable', getDepartmentTimetable);
+router.post('/timetable', createTimetableEntry);
+router.delete('/timetable/:id', deleteTimetableEntry);
 router.delete('/classes/:id', deleteClass);
 
 router.get('/leave-requests', getPendingLeaveRequests);
