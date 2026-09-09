@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import path from 'path';
 
 import { connectDB } from './config/db';
 import authRoutes from './routes/authRoutes';
@@ -32,6 +33,14 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/hod', hodRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/student', studentRoutes);
+
+// Serve the built React app (must come after all /api routes)
+const clientDistPath = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDistPath));
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
 
 const startServer = async (): Promise<void> => {
   await connectDB();
